@@ -1,0 +1,39 @@
+# Example workflow for syncing to LIVE repository
+# Copy this file to your repository's .github/workflows/ directory and customize as needed
+
+name: Sync to LIVE Repository
+
+on:
+  push:
+    tags:
+      - 'live/*'  # Trigger when tags starting with 'live/' are pushed
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read  # Required to checkout the repository
+    
+    steps:
+      # Checkout the repository with full history
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required: fetch all history and tags
+      
+      # Run GitLive sync
+      - name: Sync to LIVE
+        uses: Racso/git-live@main  # Or specify a version tag
+        with:
+          live-url: https://${{ secrets.LIVE_TOKEN }}@github.com/username/public-repo.git
+          mode: incremental  # Options: incremental (default), repair, nuke
+          dry-run: false     # Set to true to preview without pushing
+          verbosity: normal  # Options: normal (default), verbose, very-verbose
+          # config-file: gitlive  # Optional: path to config file
+
+# Setup instructions:
+# 1. Create a Personal Access Token with 'repo' scope at https://github.com/settings/tokens
+# 2. Add it as a repository secret named 'LIVE_TOKEN' at https://github.com/youruser/yourrepo/settings/secrets
+# 3. Replace 'username/public-repo.git' with your actual LIVE repository
+# 4. Tag commits you want to publish: git tag live/1.0.0 && git push origin live/1.0.0
