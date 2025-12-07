@@ -1,6 +1,6 @@
 using System;
 using System.IO;
-using TransientGit;
+using Racso.TransientGit;
 using Xunit;
 using IOFile = System.IO.File;
 
@@ -8,11 +8,11 @@ namespace GitLive.Tests
 {
     public class GitLiveTests : IDisposable
     {
-        private readonly TransientGit.TransientGit _tg;
+        private readonly Racso.TransientGit.TransientGit _tg;
 
         public GitLiveTests()
         {
-            _tg = new TransientGit.TransientGit();
+            _tg = new Racso.TransientGit.TransientGit();
         }
 
         public void Dispose()
