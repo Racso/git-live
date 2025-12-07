@@ -136,8 +136,10 @@ namespace GitLive.Tests
             _tg.Exec(baseRepo, "tag live/1.0.0");
             _tg.Exec(baseRepo, "tag live/1.1.0");
 
-            // Create live repository (empty but initialized)
+            // Create live repository
             var liveRepo = _tg.NewRepo();
+            _tg.Exec(liveRepo, "commit --allow-empty -m 'Initial'");
+            _tg.Exec(liveRepo, "branch -M main");
             _tg.Exec(liveRepo, "config receive.denyCurrentBranch ignore");
 
             // Run GitLive sync with nuke option
