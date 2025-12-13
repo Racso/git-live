@@ -184,10 +184,18 @@ namespace GitLive
             // Get username and password from config (allows CLI and ENV, but not Z0 for password)
             string? username = configReader.GetValue("user", ConfigSecurityLevel.All);
             string? password = configReader.GetValue("password", ConfigSecurityLevel.SecureFlexible);
-
-            if (!string.IsNullOrWhiteSpace(username) || !string.IsNullOrWhiteSpace(password))
+            
+            if (string.IsNullOrWhiteSpace(username) && string.IsNullOrWhiteSpace(password))
             {
-                logger.VeryVerbose("Adding authentication credentials to LIVE URL");
+                logger.VeryVerbose("No authentication credentials provided for LIVE URL");
+            }
+            else
+            {
+                if (!string.IsNullOrWhiteSpace(username))
+                    logger.VeryVerbose("Username provided for LIVE URL authentication");
+                if (!string.IsNullOrWhiteSpace(password))
+                    logger.VeryVerbose("Password provided for LIVE URL authentication");
+                
                 return UrlBuilder.AddAuthentication(liveRemoteUrl, username, password);
             }
 
