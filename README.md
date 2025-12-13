@@ -88,9 +88,9 @@ public-url = https://github.com/user/public-repo.git
 user = myusername
 
 files:
-= - secret.txt
-= - internal/
-= - *.key
+# = - secret.txt
+# = - internal/
+# = - *.key
 ```
 
 Then simply run:
@@ -111,37 +111,37 @@ Control which files sync to LIVE using ordered add (+) and remove (-) rules.
 Sync only documentation:
 ```
 files:
-= + *.md
-= + docs/*.txt
+# = + *.md
+# = + docs/*.txt
 ```
 
 Sync all except secrets:
 ```
 files:
-= - secret.txt
-= - .env
-= - *.key
-= - internal/
+# = - secret.txt
+# = - .env
+# = - *.key
+# = - internal/
 ```
 
 Sync images except one:
 ```
 files:
-= + *.png
-= + *.jpg
-= - logo-draft.png
+# = + *.png
+# = + *.jpg
+# = - logo-draft.png
 ```
 
 Sync source code excluding tests:
 ```
 files:
-= + src/*.cs
-= - src/*Test.cs
+# = + src/*.cs
+# = - src/*Test.cs
 ```
 
 ## GitHub Action Usage
 
-### Basic Workflow
+### Minimal Workflow
 
 Create `.github/workflows/sync-live.yml`:
 
@@ -153,30 +153,6 @@ on:
     tags:
       - 'live/*'
   workflow_dispatch:
-    inputs:
-      mode:
-        description: 'Sync mode'
-        required: false
-        default: 'incremental'
-        type: choice
-        options:
-          - incremental
-          - repair
-          - nuke
-      dry-run:
-        description: 'Dry run (preview without pushing)'
-        required: false
-        default: false
-        type: boolean
-      verbosity:
-        description: 'Verbosity level'
-        required: false
-        default: 'normal'
-        type: choice
-        options:
-          - normal
-          - verbose
-          - very-verbose
 
 jobs:
   sync:
@@ -196,14 +172,13 @@ jobs:
         env:
           GITLIVE_USER: ${{ vars.GITLIVE_USER }}
           GITLIVE_PASSWORD: ${{ secrets.GITLIVE_PASSWORD }}
-        with:
-          live-url: https://${{ secrets.LIVE_TOKEN }}@github.com/username/public-repo.git
-          mode: ${{ inputs.mode || 'incremental' }}
-          dry-run: ${{ inputs.dry-run || false }}
-          verbosity: ${{ inputs.verbosity || 'normal' }}
 ```
 
+This is a minimal example. For a full-fledged workflow with inputs and other quality-of-life improvements, see the example file in `.github/workflows/`
+
 ### Action Inputs
+
+The action supports the following inputs. They are especially useful when running the action manually via workflow dispatch.
 
 - `live-url` - URL of the LIVE repository (can be omitted if using `gitlive.z0` config file or `GITLIVE_URL` env var)
 - `mode` - Sync mode: `incremental`, `repair`, or `nuke` (default: `incremental`)
@@ -264,8 +239,8 @@ public-url = https://github.com/user/public-repo.git
 user = myusername
 
 files:
-= - .env
-= - secrets/
+# = - .env
+# = - secrets/
 EOF
 
 export GITLIVE_PASSWORD="token"
