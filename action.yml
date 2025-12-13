@@ -6,8 +6,9 @@ branding:
 
 inputs:
   live-url:
-    description: 'URL of the LIVE remote repository (e.g., https://github.com/user/repo.git)'
-    required: true
+    description: 'URL of the LIVE remote repository (e.g., https://github.com/user/repo.git). Can be omitted if GITLIVE_URL env var is set or gitlive.z0 config file contains the URL'
+    required: false
+    default: ''
   mode:
     description: 'Sync mode: incremental (default), repair, or nuke'
     required: false
@@ -43,38 +44,49 @@ runs:
     
     - name: Run GitLive Sync
       shell: bash
+      env:
+        LIVE_URL: ${{ inputs.live-url }}
+        MODE: ${{ inputs.mode }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        VERBOSITY: ${{ inputs.verbosity }}
+        CONFIG_FILE: ${{ inputs.config-file }}
       run: |
         # Prepare arguments
-        ARGS="--url=${{ inputs.live-url }}"
+        ARGS=()
+        
+        # Add URL if provided
+        if [ -n "$LIVE_URL" ]; then
+          ARGS+=("--url=$LIVE_URL")
+        fi
         
         # Add mode flag
-        if [ "${{ inputs.mode }}" = "repair" ]; then
-          ARGS="$ARGS --repair"
-        elif [ "${{ inputs.mode }}" = "nuke" ]; then
-          ARGS="$ARGS --nuke"
+        if [ "$MODE" = "repair" ]; then
+          ARGS+=("--repair")
+        elif [ "$MODE" = "nuke" ]; then
+          ARGS+=("--nuke")
         else
-          ARGS="$ARGS --incremental"
+          ARGS+=("--incremental")
         fi
         
         # Add dry-run flag
-        if [ "${{ inputs.dry-run }}" = "true" ]; then
-          ARGS="$ARGS --dry-run"
+        if [ "$DRY_RUN" = "true" ]; then
+          ARGS+=("--dry-run")
         fi
         
         # Add verbosity flag
-        if [ "${{ inputs.verbosity }}" = "verbose" ]; then
-          ARGS="$ARGS -v"
-        elif [ "${{ inputs.verbosity }}" = "very-verbose" ]; then
-          ARGS="$ARGS -vv"
+        if [ "$VERBOSITY" = "verbose" ]; then
+          ARGS+=("-v")
+        elif [ "$VERBOSITY" = "very-verbose" ]; then
+          ARGS+=("-vv")
         fi
         
         # Copy config file if provided (resolve path relative to the workflow workspace)
-        if [ -n "${{ inputs.config-file }}" ] && [ -f "${{ inputs.config-file }}" ]; then
-          cp "${{ inputs.config-file }}" "$GITHUB_WORKSPACE/gitlive"
+        if [ -n "$CONFIG_FILE" ] && [ -f "$CONFIG_FILE" ]; then
+          cp "$CONFIG_FILE" "$GITHUB_WORKSPACE/gitlive"
         fi
         
         # Run GitLive (binary published into the workspace)
-        "$GITHUB_WORKSPACE/gitlive-bin/git-live" $ARGS
+        "$GITHUB_WORKSPACE/gitlive-bin/git-live" "${ARGS[@]}"
     
     - name: Cleanup
       shell: bash

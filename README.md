@@ -1,177 +1,149 @@
 # GitLive
 
-Sync tagged releases from a private repository to a public LIVE repository, creating a clean, rewritten history.
+Sync tagged releases from a private repository to a public LIVE repository with clean, rewritten history.
 
 ## Overview
 
-GitLive publishes commits tagged with `live/*` from your private repository to a public LIVE repository. Each tag becomes a squashed commit in the LIVE repo, hiding your private development history while preserving release content.
+GitLive publishes commits tagged with `live/*` from your private repository to a public LIVE repository. Each tag becomes a squashed commit in the LIVE repo, hiding your development history while preserving release content.
 
-## CLI Usage
+## Installation
 
-### Installation
+### CLI Tool
 
 ```bash
 dotnet publish -c Release -r <runtime> -o <output-dir>
-# Example for Linux:
-dotnet publish -c Release -r linux-x64 -o ./bin
 ```
 
-### Basic Commands
+Common runtimes: `linux-x64`, `win-x64`, `osx-x64`, `osx-arm64`
+
+Example:
+```bash
+dotnet publish -c Release -r linux-x64 -o ./bin
+export PATH="$PATH:$(pwd)/bin"
+```
+
+### GitHub Action
+
+No installation needed. Use directly in workflows with `Racso/git-live@main`.
+
+## CLI Usage
+
+### Basic Command
 
 ```bash
-# Sync to LIVE repository (incremental mode)
 git-live --url=https://github.com/user/public-repo.git
-
-# Repair mode: resync from first missing tag
-git-live --url=https://github.com/user/public-repo.git --repair
-
-# Nuke mode: completely rebuild LIVE repository
-git-live --url=https://github.com/user/public-repo.git --nuke
-
-# Dry run: preview changes without pushing
-git-live --url=https://github.com/user/public-repo.git --dry-run
-
-# Verbose output
-git-live --url=https://github.com/user/public-repo.git -v
-git-live --url=https://github.com/user/public-repo.git -vv  # very verbose
 ```
+
+### Options
+
+#### Mode Options
+
+- `--incremental` (default) - Sync only new tags after the last published commit
+- `--repair` - Scan all tags and sync any missing ones. Use after modifying repo history (rebases, force-pushes) or tag modifications that desynced the tag history
+- `--nuke` - Delete all LIVE tags and completely rebuild the repository. Use after major history rewrites or to fix severe desynchronization
+
+#### Execution Options
+
+- `--dry-run` - Preview changes without pushing to LIVE repository
+- `--url=<url>` - Specify the LIVE repository URL (can also use `GITLIVE_URL` env var or `gitlive.z0` config file)
+- `--user=<username>` - Username for authentication
+- `--password=<password>` - Password/token for authentication
+- `--config-file=<path>` - Path to config file (default: `gitlive.z0`)
+
+#### Verbosity Options
+
+- `-v` or `--verbose` - Show detailed progress information
+- `-vv` or `--very-verbose` - Show all operations and debug information
+
+### Authentication
+
+**Environment Variables (Recommended):**
+```bash
+export GITLIVE_USER="username"
+export GITLIVE_PASSWORD="ghp_token123"
+git-live --url=https://github.com/user/public-repo.git
+```
+
+**CLI Arguments:**
+```bash
+git-live --url=https://github.com/user/repo.git --user=username --password=token
+```
+
+**Configuration File:**
+```
+public-url = https://github.com/user/public-repo.git
+user = username
+```
+
+**Priority:** CLI arguments > Environment variables > Configuration file
+
+**Note:** Passwords cannot be stored in `gitlive.z0` for security reasons.
 
 ### Configuration File
 
-Create a `gitlive.z0` file in your repository root:
+Create `gitlive.z0` in your repository root:
 
 ```
 public-url = https://github.com/user/public-repo.git
-
-# Optional: username for authentication
-# user = myusername
-
-# Note: Password cannot be stored in this file for security
-# Use environment variables or CLI arguments instead
+user = myusername
 
 files:
-# = - secret.txt
-# = - internal/
+= - secret.txt
+= - internal/
+= - *.key
 ```
 
-With a config file, simply run:
-
+Then simply run:
 ```bash
 git-live
 ```
 
-### Authentication
-
-GitLive supports multiple ways to provide authentication credentials for the LIVE repository:
-
-**Environment Variables** (Recommended for security):
-```bash
-export GITLIVE_USER="username"
-export GITLIVE_PASSWORD="password"
-git-live --url=https://github.com/user/public-repo.git
-```
-
-**CLI Arguments**:
-```bash
-git-live --url=https://github.com/user/public-repo.git --user=username --password=password
-```
-
-**Configuration File** (username only):
-```
-public-url = https://github.com/user/public-repo.git
-user = username
-# Password must come from environment variable or CLI for security
-```
-
-**Priority Order**: CLI arguments > Environment variables > Configuration file
-
-**Note**: For security reasons, passwords cannot be stored in the `gitlive.z0` configuration file. Use environment variables (`GITLIVE_PASSWORD`) or CLI arguments instead.
-
 ### File Selection
 
-GitLive uses file selection rules to control which files are synced to the LIVE repository. Rules use an ordered list of add (+) and remove (-) operations:
-
-```
-files:
-# = + *.png
-# = + *.jpg
-# = - logo.png
-# = + src/*.cs
-# = - src/temp.cs
-```
-
-Rules are evaluated in order:
-1. Start with an empty selection
-2. Add (+) rules include matching files
-3. Remove (-) rules exclude matching files
-4. The final result contains only the files that remain after all rules are applied
+Control which files sync to LIVE using ordered add (+) and remove (-) rules.
 
 **Starting State:**
-- If the first rule is `+` (add): Start with empty selection - only explicitly added files are included
-- If the first rule is `-` (remove): Start with all files - only explicitly removed files are excluded
-
-**Pattern Matching:**
-- `*` matches any characters in a filename
-- `?` matches a single character
-- Patterns can include directory paths (e.g., `src/*.cs`, `docs/*.md`)
-- Patterns are case-sensitive
+- First rule `+`: Start empty, only added files included
+- First rule `-`: Start with all files, only removed files excluded
 
 **Examples:**
 
-Sync only PNG files (start empty, add only PNGs):
+Sync only documentation:
 ```
 files:
-# = + *.png
+= + *.md
+= + docs/*.txt
 ```
 
-Sync all files except PNGs (start with all, remove PNGs):
+Sync all except secrets:
 ```
 files:
-# = - *.png
+= - secret.txt
+= - .env
+= - *.key
+= - internal/
 ```
 
-Sync only documentation files:
+Sync images except one:
 ```
 files:
-# = + *.md
-# = + docs/*.txt
+= + *.png
+= + *.jpg
+= - logo-draft.png
 ```
 
-Sync all images except a specific one:
+Sync source code excluding tests:
 ```
 files:
-# = + *.png
-# = + *.jpg
-# = - logo.png
+= + src/*.cs
+= - src/*Test.cs
 ```
-
-Sync source code but exclude test files:
-```
-files:
-# = + src/*.cs
-# = - src/*Test.cs
-# = - src/*Tests.cs
-```
-
-Sync everything except secrets and build artifacts:
-```
-files:
-# = - secret.txt
-# = - .env
-# = - *.key
-# = - bin/
-# = - obj/
-```
-
-### Sync Modes
-
-- **Incremental** (default): Syncs only new tags after the last published commit
-- **Repair**: Scans all tags and syncs any missing ones
-- **Nuke**: Deletes all LIVE tags and completely rebuilds the repository
 
 ## GitHub Action Usage
 
-Add to your workflow (`.github/workflows/sync-live.yml`):
+### Basic Workflow
+
+Create `.github/workflows/sync-live.yml`:
 
 ```yaml
 name: Sync to LIVE
@@ -180,54 +152,209 @@ on:
   push:
     tags:
       - 'live/*'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Sync mode'
+        required: false
+        default: 'incremental'
+        type: choice
+        options:
+          - incremental
+          - repair
+          - nuke
+      dry-run:
+        description: 'Dry run (preview without pushing)'
+        required: false
+        default: false
+        type: boolean
+      verbosity:
+        description: 'Verbosity level'
+        required: false
+        default: 'normal'
+        type: choice
+        options:
+          - normal
+          - verbose
+          - very-verbose
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Required for full history
-
-      - uses: Racso/git-live@main
+          fetch-depth: 0
+      
+      - name: Sync to LIVE
+        uses: Racso/git-live@main
+        env:
+          GITLIVE_USER: ${{ vars.GITLIVE_USER }}
+          GITLIVE_PASSWORD: ${{ secrets.GITLIVE_PASSWORD }}
         with:
-          live-url: https://${{ secrets.LIVE_TOKEN }}@github.com/user/public-repo.git
-          mode: incremental  # or: repair, nuke
-          dry-run: false
-          verbosity: normal  # or: verbose, very-verbose
+          live-url: https://${{ secrets.LIVE_TOKEN }}@github.com/username/public-repo.git
+          mode: ${{ inputs.mode || 'incremental' }}
+          dry-run: ${{ inputs.dry-run || false }}
+          verbosity: ${{ inputs.verbosity || 'normal' }}
 ```
 
-See `.github/workflows/sync-live-example.yml` for a complete example with setup instructions.
+### Action Inputs
 
-### Action Authentication
+- `live-url` - URL of the LIVE repository (can be omitted if using `gitlive.z0` config file or `GITLIVE_URL` env var)
+- `mode` - Sync mode: `incremental`, `repair`, or `nuke` (default: `incremental`)
+- `dry-run` - Preview without pushing: `true` or `false` (default: `false`)
+- `verbosity` - Verbosity level: `normal`, `verbose`, or `very-verbose` (default: `normal`)
+- `config-file` - Path to config file (optional)
 
-Configure authentication for pushing to LIVE repository:
+### Setup
 
 1. Create a Personal Access Token at https://github.com/settings/tokens with `repo` scope
-2. Add it as a repository secret named `LIVE_TOKEN`
-3. Use it in the workflow as shown above: `https://${{ secrets.LIVE_TOKEN }}@github.com/...`
+2. Add as repository secret: `LIVE_TOKEN`
+3. Add username as repository variable: `GITLIVE_USER` (Settings → Secrets and variables → Actions → Variables)
+4. Add password as repository secret: `GITLIVE_PASSWORD`
+5. Update `live-url` with your repository
 
-## Tagging Strategy
+## Usage Examples
 
-Tag commits you want to publish:
+### Publish a Release
 
 ```bash
-# Tag current commit for publishing
 git tag live/1.0.0
 git push origin live/1.0.0
-
-# Then run GitLive or let the action handle it
 ```
 
-Tags must start with `live/` prefix. The published tags in the LIVE repo will have the prefix removed (e.g., `live/1.0.0` → `1.0.0`).
+If using GitHub Actions, the workflow triggers automatically. For CLI:
+
+```bash
+git-live --url=https://github.com/user/public-repo.git
+```
+
+### Preview Changes
+
+```bash
+git-live --url=https://github.com/user/repo.git --dry-run -v
+```
+
+### Repair After Rebase
+
+After rebasing or force-pushing, tags may desync. Use repair mode:
+
+```bash
+git-live --url=https://github.com/user/repo.git --repair
+```
+
+### Complete Rebuild
+
+After major history rewrites or severe issues:
+
+```bash
+git-live --url=https://github.com/user/repo.git --nuke -v
+```
+
+### Using Config File
+
+```bash
+cat > gitlive.z0 << 'EOF'
+public-url = https://github.com/user/public-repo.git
+user = myusername
+
+files:
+= - .env
+= - secrets/
+EOF
+
+export GITLIVE_PASSWORD="token"
+git-live
+```
 
 ## How It Works
 
-1. Identifies all `live/*` tags in your repository
-2. Creates a temporary git repository  
+1. Identifies all `live/*` tags in source repository
+2. Creates a temporary git repository
 3. For each tag, creates a squashed commit with the tag's content
-4. Pushes commits and tags to the LIVE repository
-5. Each LIVE commit contains metadata linking back to the original commit
+4. Pushes commits and tags to LIVE repository
+5. Each commit contains metadata linking to the original
+
+Tags in LIVE have the prefix removed: `live/1.0.0` → `1.0.0`
+
+## Troubleshooting
+
+### No Tags Published
+
+**Problem:** "No new tags to publish" message appears.
+
+**Solutions:**
+- Verify tags exist: `git tag | grep "^live/"`
+- Check tags are fetched: `git fetch --tags`
+- Try repair mode: `git-live --repair`
+- Use verbose mode to see details: `git-live -vv`
+
+### Authentication Failures
+
+**Problem:** Push fails with authentication error.
+
+**Solutions:**
+- Verify credentials are set correctly
+- For GitHub, use Personal Access Token, not password
+- Check token has `repo` scope
+- Test credentials: `git ls-remote https://token@github.com/user/repo.git`
+- Use very verbose mode: `git-live -vv`
+
+### Tags Out of Sync
+
+**Problem:** LIVE repository has different tags than expected.
+
+**Solutions:**
+- Use repair mode to resync: `git-live --repair`
+- If severely desynced, use nuke mode: `git-live --nuke`
+- Verify tags in both repos: `git ls-remote --tags <url>`
+
+### Wrong Files in LIVE
+
+**Problem:** Unwanted files appear in LIVE repository.
+
+**Solutions:**
+- Review file selection rules in `gitlive.z0`
+- Remember first rule determines starting state
+- Test with dry-run: `git-live --dry-run -v`
+- If already pushed, fix rules and use: `git-live --nuke`
+
+### History Desynchronization
+
+**Problem:** After rebasing, force-pushing, or modifying tags, LIVE repository is out of sync.
+
+**Cause:** Git history modifications change commit hashes, breaking the link between source and LIVE tags.
+
+**Solutions:**
+- Use repair mode to resync missing tags: `git-live --repair`
+- For major issues, rebuild completely: `git-live --nuke`
+- Avoid rewriting history of already-published tags
+
+### Workflow Not Triggering
+
+**Problem:** GitHub Actions workflow doesn't run when pushing tags.
+
+**Solutions:**
+- Verify workflow file is in `.github/workflows/`
+- Check tag matches pattern: `live/*`
+- Ensure workflow is on default branch
+- Check workflow run history for errors
+- Verify repository secrets/variables are set
+
+### Dry Run Shows Unexpected Changes
+
+**Problem:** Dry run output shows different changes than expected.
+
+**Solutions:**
+- Use very verbose mode: `git-live --dry-run -vv`
+- Check file selection rules
+- Verify which tags are being processed
+- Compare with LIVE: `git ls-remote --tags <live-url>`
 
 ## Requirements
 
