@@ -1,0 +1,83 @@
+name: 'GitLive Sync'
+description: 'Sync tagged releases from a private repository to a public LIVE repository'
+branding:
+  icon: 'git-branch'
+  color: 'blue'
+
+inputs:
+  live-url:
+    description: 'URL of the LIVE remote repository (e.g., https://github.com/user/repo.git)'
+    required: true
+  mode:
+    description: 'Sync mode: incremental (default), repair, or nuke'
+    required: false
+    default: 'incremental'
+  dry-run:
+    description: 'Run in dry-run mode without pushing changes'
+    required: false
+    default: 'false'
+  verbosity:
+    description: 'Verbosity level: normal (default), verbose, or very-verbose'
+    required: false
+    default: 'normal'
+  config-file:
+    description: 'Path to gitlive config file (optional)'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+    
+    - name: Build GitLive
+      shell: bash
+      run: |
+        # Use the action path (where this action's repository files are available)
+        cd "$GITHUB_ACTION_PATH"
+        # Publish into the caller's workspace so subsequent steps can execute the binary
+        dotnet publish GitLive.csproj -c Release -r linux-x64 -o "$GITHUB_WORKSPACE/gitlive-bin"
+    
+    - name: Run GitLive Sync
+      shell: bash
+      run: |
+        # Prepare arguments
+        ARGS="--url=${{ inputs.live-url }}"
+        
+        # Add mode flag
+        if [ "${{ inputs.mode }}" = "repair" ]; then
+          ARGS="$ARGS --repair"
+        elif [ "${{ inputs.mode }}" = "nuke" ]; then
+          ARGS="$ARGS --nuke"
+        else
+          ARGS="$ARGS --incremental"
+        fi
+        
+        # Add dry-run flag
+        if [ "${{ inputs.dry-run }}" = "true" ]; then
+          ARGS="$ARGS --dry-run"
+        fi
+        
+        # Add verbosity flag
+        if [ "${{ inputs.verbosity }}" = "verbose" ]; then
+          ARGS="$ARGS -v"
+        elif [ "${{ inputs.verbosity }}" = "very-verbose" ]; then
+          ARGS="$ARGS -vv"
+        fi
+        
+        # Copy config file if provided (resolve path relative to the workflow workspace)
+        if [ -n "${{ inputs.config-file }}" ] && [ -f "${{ inputs.config-file }}" ]; then
+          cp "${{ inputs.config-file }}" "$GITHUB_WORKSPACE/gitlive"
+        fi
+        
+        # Run GitLive (binary published into the workspace)
+        "$GITHUB_WORKSPACE/gitlive-bin/git-live" $ARGS
+    
+    - name: Cleanup
+      shell: bash
+      if: always()
+      run: |
+        rm -rf "$GITHUB_WORKSPACE/gitlive-bin"

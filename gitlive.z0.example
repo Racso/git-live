@@ -1,0 +1,44 @@
+# Example GitLive configuration file
+# Rename this file to gitlive.z0 and customize for your project
+
+# The URL of the public LIVE repository where tagged releases will be published
+# Can also be provided via --url=<url> CLI argument or GITLIVE_URL environment variable
+public-url = https://github.com/user/public-repo.git
+
+# Authentication (optional)
+# Username for git authentication - can be provided via:
+#   - CLI argument: --user=<username>
+#   - Environment variable: GITLIVE_USER (recommended for security)
+#   - This file: user = <username>
+# user = myusername
+
+# Password for git authentication - can be provided via:
+#   - CLI argument: --password=<password> (NOT recommended for security)
+#   - Environment variable: GITLIVE_PASSWORD (recommended for security)
+#   - NOTE: Password cannot be stored in this file for security reasons
+# To use authentication, set GITLIVE_USER and GITLIVE_PASSWORD environment variables
+
+# File Selection Rules
+# Rules are evaluated in order:
+# - If first rule is add (+): start with empty selection, only explicitly added files included
+# - If first rule is remove (-): start with all files, only explicitly removed files excluded
+# - Add (+) rules include matching files
+# - Remove (-) rules exclude matching files
+
+# Example 1: Sync only specific file types (start empty, add specific files)
+files:
+# = + *.md
+# = + *.txt
+# = + src/*.cs
+# = - src/*Test.cs
+# = + assets/*.png
+# = - assets/logo-draft.png
+
+# Example 2: Sync everything except secrets (start with all, remove specific files)
+# files:
+# = - secret.txt
+# = - internal/
+# = - *.key
+# = - .env
+# = - bin/
+# = - obj/
