@@ -1,0 +1,71 @@
+# To lock the git-live Action verrsion, replace "main" with the version tag (e.g. "1.0.5"):
+# uses: Racso/git-live@main -> uses: Racso/git-live@1.0.5
+
+name: Sync to LIVE
+
+on:
+  push:
+    tags:
+      - 'live/*'
+  workflow_dispatch:
+    inputs:
+      create-tag:
+        description: 'CREATE-TAG: if filled (e.g. "1.0"), a "live/" tag will be created (e.g. "live/1.0") and sync will be triggered.'
+        required: false
+        default: ''
+        type: string
+      mode:
+        description: 'Sync mode'
+        required: false
+        default: 'incremental'
+        type: choice
+        options:
+          - incremental
+          - repair
+          - nuke
+      dry-run:
+        description: 'Dry run (preview without pushing)'
+        required: false
+        default: false
+        type: boolean
+      verbosity:
+        description: 'Verbosity level'
+        required: false
+        default: 'normal'
+        type: choice
+        options:
+          - normal
+          - verbose
+          - very-verbose
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Create and Push Tag
+        if: ${{ inputs.create-tag != '' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag live/${{ inputs.create-tag }}
+          git push origin live/${{ inputs.create-tag }}
+      
+      - name: Sync to LIVE
+        if: ${{ github.event_name == 'push' || inputs.create-tag == '' }}
+        uses: Racso/git-live@main
+        env:
+          GITLIVE_USER: ${{ vars.GITLIVE_USER }}
+          GITLIVE_PASSWORD: ${{ secrets.GITLIVE_PASSWORD }}
+        with:
+          mode: ${{ inputs.mode || 'incremental' }}
+          dry-run: ${{ inputs.dry-run || false }}
+          verbosity: ${{ inputs.verbosity || 'normal' }}
